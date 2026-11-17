@@ -2,11 +2,25 @@ const weekdayIds = [1, 2, 3, 4, 5, 6, 0]
 const weekdayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 
 export const defaultForecastSettings = {
+  scheduleVersion: 2,
   schools: {
-    MIAGE: { weekdays: [1, 2, 3, 4, 5], hoursPerDay: 1.5 },
-    ECIG: { weekdays: [1, 2, 3, 4, 5], hoursPerDay: 1.5 },
+    MIAGE: { weekdays: [1, 2, 3, 4], hoursByDay: { 1: 3, 2: 1.5, 3: 3, 4: 1.5 } },
+    ECIG: { weekdays: [2, 4], hoursByDay: { 2: 3, 4: 3 } },
   },
   holidays: [],
+}
+
+export function normalizeForecastSettings(value) {
+  if (!value || Number(value.scheduleVersion) < 2) {
+    return { ...defaultForecastSettings, holidays: Array.isArray(value?.holidays) ? value.holidays : [] }
+  }
+  return {
+    ...defaultForecastSettings,
+    ...value,
+    scheduleVersion: 2,
+    schools: { ...defaultForecastSettings.schools, ...(value.schools || {}) },
+    holidays: Array.isArray(value.holidays) ? value.holidays : [],
+  }
 }
 
 export function moroccoFixedHolidays(year) {
@@ -47,8 +61,9 @@ export function calculateMonthlyForecast({ month, today, rows, settings, schools
       .filter(holiday => holiday.school === name || holiday.school === 'Tous')
       .map(holiday => holiday.date))
     const workDates = monthDates.filter(date => schedule.weekdays.includes(date.getDay()) && !holidayDates.has(dateKey(date)))
-    const expectedDays = workDates.filter(date => dateKey(date) >= today && !actualDays.has(dateKey(date))).length
-    const expectedHours = expectedDays * Number(schedule.hoursPerDay || 0)
+    const expectedDates = workDates.filter(date => dateKey(date) >= today && !actualDays.has(dateKey(date)))
+    const expectedDays = expectedDates.length
+    const expectedHours = expectedDates.reduce((sum, date) => sum + Number(schedule.hoursByDay?.[date.getDay()] || 0), 0)
 
     return {
       name,

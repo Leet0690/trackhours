@@ -3,8 +3,9 @@ import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis
 import { ArrowDownToLine, ArrowRight, CalendarDays, Check, ChevronDown, Clock3, GraduationCap, LayoutDashboard, ListFilter, Menu, Pencil, Plus, Sparkles, Trash2, TrendingUp, Wallet, X } from 'lucide-react'
 import { firebaseReady, removeAttendance, saveAttendance, saveForecastSettings, subscribeAttendances, subscribeForecastSettings } from './firebase'
 import ForecastPage from './ForecastPage'
-import { defaultForecastSettings } from './forecast'
+import { defaultForecastSettings, normalizeForecastSettings } from './forecast'
 import './forecast.css'
+import './forecast-schedule.css'
 
 const schools = { MIAGE: { rate: 75, color: '#366c60', soft: '#e5f0eb' }, ECIG: { rate: 70, color: '#cd8a53', soft: '#f7ecdf' } }
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
@@ -32,7 +33,8 @@ function App() {
 
   useEffect(() => subscribeAttendances(setRows, () => setToast('Connexion Firebase interrompue.')), [])
   useEffect(() => subscribeForecastSettings(value => {
-    if (value) setForecastSettings(current => JSON.stringify(current) === JSON.stringify(value) ? current : value)
+    const normalized = normalizeForecastSettings(value)
+    setForecastSettings(current => JSON.stringify(current) === JSON.stringify(normalized) ? current : normalized)
     setForecastSettingsLoaded(true)
   }, () => setToast('Impossible de charger le calendrier prévisionnel.')), [])
   useEffect(() => {

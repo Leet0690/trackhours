@@ -1,0 +1,13 @@
+.forecast-setting-title>span{display:flex;align-items:center;gap:6px}
+.forecast-setting-title>span svg{color:#829188}
+.weekday-picker{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin:9px 0 2px}
+.weekday-plan{display:grid;gap:4px;justify-items:center;min-width:0;padding:5px 2px;border:1px solid #edf0eb;border-radius:7px}
+.weekday-plan.selected{background:#f6faf7;border-color:#dce9df}
+.weekday-chip{height:23px;width:100%;min-width:0;padding:0;border:1px solid #e5eae5;border-radius:6px;background:#fff;color:#78847c;font-size:8px}
+.weekday-plan.selected .weekday-chip{border-color:#c6d8cb;background:#eff5f0;color:#3b6c59;font-weight:600}
+.weekday-chip:focus-visible{outline:2px solid #77a58d;outline-offset:2px}
+.weekday-hours{height:20px;width:100%;display:flex;align-items:center;gap:1px;border:1px solid #e7ebe7;border-radius:5px;background:#fff;padding:0 3px}
+.weekday-hours input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#46554c;font-size:8px;text-align:center}
+.weekday-hours small{font-size:7px;color:#929c95}
+.weekday-off{height:20px;color:#b2bab4;font-size:9px}
+@media(max-width:650px){.weekday-picker{gap:4px}.weekday-chip{min-width:0}}

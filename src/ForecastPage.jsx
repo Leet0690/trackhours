@@ -29,10 +29,13 @@ export default function ForecastPage({ rows, month, setMonth, schools, money, se
 
   function toggleWeekday(name, weekday) {
     const current = settings.schools[name] || defaultForecastSettings.schools[name]
-    const weekdays = current.weekdays.includes(weekday)
+    const selected = current.weekdays.includes(weekday)
+    const weekdays = selected
       ? current.weekdays.filter(day => day !== weekday)
       : [...current.weekdays, weekday].sort((a, b) => weekdayIds.indexOf(a) - weekdayIds.indexOf(b))
-    updateSchool(name, { weekdays })
+    const hoursByDay = { ...current.hoursByDay }
+    if (!selected && hoursByDay[weekday] === undefined) hoursByDay[weekday] = 1.5
+    updateSchool(name, { weekdays, hoursByDay })
   }
 
   function addHoliday(event) {
@@ -69,14 +72,17 @@ export default function ForecastPage({ rows, month, setMonth, schools, money, se
         return <article className="panel forecast-school-card" key={item.name}>
           <div className="forecast-school-title"><span className="school-icon" style={{ background: info.soft, color: info.color }}>{item.name.slice(0, 2)}</span><div><h2>{item.name}</h2><span>{item.rate} DH / heure</span></div><div className="forecast-total">{money(item.totalAmount)}<small>estimés</small></div></div>
           <div className="forecast-breakdown"><div><span>Jours travaillés prévus</span><b>{item.workDays}</b></div><div><span>Jours à venir comptés</span><b>{item.expectedDays}</b></div><div><span>Honoraires enregistrés</span><b>{money(item.actualAmount)}</b></div></div>
-          <div className="forecast-settings"><div className="forecast-setting-title"><span>Jours de travail</span><small>Choisissez ceux de {item.name}</small></div><div className="weekday-picker" aria-label={`Jours travaillés pour ${item.name}`}>
+          <div className="forecast-settings"><div className="forecast-setting-title"><span><Clock3 size={14} /> Planning hebdomadaire</span><small>Activez les jours et réglez leurs heures</small></div><div className="weekday-picker" aria-label={`Planning hebdomadaire pour ${item.name}`}>
             {weekdayLabels.map((label, index) => {
               const day = weekdayIds[index]
               const selected = schedule.weekdays.includes(day)
-              return <button key={label} type="button" className={selected ? 'weekday-chip selected' : 'weekday-chip'} aria-pressed={selected} onClick={() => toggleWeekday(item.name, day)}>{label}</button>
+              const hours = schedule.hoursByDay?.[day] ?? 0
+              return <div className={selected ? 'weekday-plan selected' : 'weekday-plan'} key={label}>
+                <button type="button" className="weekday-chip" aria-pressed={selected} onClick={() => toggleWeekday(item.name, day)}>{label}</button>
+                {selected ? <label className="weekday-hours"><input type="number" min="0" max="24" step="0.25" value={hours} aria-label={`${label}, heures prévues à ${item.name}`} onChange={event => updateSchool(item.name, { hoursByDay: { ...schedule.hoursByDay, [day]: event.target.value === '' ? '' : Math.min(24, Math.max(0, Number(event.target.value))) } })} onBlur={() => { if (hours === '') updateSchool(item.name, { hoursByDay: { ...schedule.hoursByDay, [day]: 0 } }) }} /><small>h</small></label> : <span className="weekday-off">—</span>}
+              </div>
             })}
           </div>
-          <label className="hours-per-day"><span><Clock3 size={15} /> Heures prévues par jour</span><span className="hours-input-wrap"><input type="number" min="0" max="24" step="0.25" value={schedule.hoursPerDay} onChange={event => updateSchool(item.name, { hoursPerDay: event.target.value === '' ? '' : Math.min(24, Math.max(0, Number(event.target.value))) })} onBlur={() => { if (schedule.hoursPerDay === '') updateSchool(item.name, { hoursPerDay: 1.5 }) }} aria-label={`Heures prévues par jour à ${item.name}`} /><small>h</small></span></label>
           </div>
         </article>
       })}
