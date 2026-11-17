@@ -22,6 +22,7 @@ if (firebaseReady) {
 }
 
 const localKey = 'trackhours-attendances-v1'
+const forecastKey = 'trackhours-forecast-settings-v1'
 export function subscribeAttendances(callback, onError) {
   if (firebaseReady) {
     let unsubscribe
@@ -47,4 +48,32 @@ export async function removeAttendance(id) {
   if (firebaseReady) { await authReady; return deleteDoc(doc(db, 'users', userId, 'attendances', id)) }
   localStorage.setItem(localKey, JSON.stringify(JSON.parse(localStorage.getItem(localKey) || '[]').filter(row => row.id !== id)))
   window.dispatchEvent(new StorageEvent('storage', { key: localKey }))
+}
+
+export function subscribeForecastSettings(callback, onError) {
+  if (firebaseReady) {
+    let unsubscribe
+    let cancelled = false
+    authReady.then(() => {
+      if (!cancelled) unsubscribe = onSnapshot(doc(db, 'users', userId, 'settings', 'forecast'), snap => callback(snap.exists() ? snap.data() : null), onError)
+    }).catch(onError)
+    return () => { cancelled = true; unsubscribe?.() }
+  }
+  const read = () => {
+    try { callback(JSON.parse(localStorage.getItem(forecastKey) || 'null')) }
+    catch { callback(null) }
+  }
+  read()
+  const listener = event => { if (event.key === forecastKey) read() }
+  window.addEventListener('storage', listener)
+  return () => window.removeEventListener('storage', listener)
+}
+
+export async function saveForecastSettings(settings) {
+  if (firebaseReady) {
+    await authReady
+    return setDoc(doc(db, 'users', userId, 'settings', 'forecast'), settings)
+  }
+  localStorage.setItem(forecastKey, JSON.stringify(settings))
+  window.dispatchEvent(new StorageEvent('storage', { key: forecastKey }))
 }

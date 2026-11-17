@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { ArrowDownToLine, ArrowRight, CalendarDays, Check, ChevronDown, Clock3, GraduationCap, LayoutDashboard, ListFilter, Menu, Pencil, Plus, Sparkles, Trash2, Wallet, X } from 'lucide-react'
-import { firebaseReady, removeAttendance, saveAttendance, subscribeAttendances } from './firebase'
+import { ArrowDownToLine, ArrowRight, CalendarDays, Check, ChevronDown, Clock3, GraduationCap, LayoutDashboard, ListFilter, Menu, Pencil, Plus, Sparkles, Trash2, TrendingUp, Wallet, X } from 'lucide-react'
+import { firebaseReady, removeAttendance, saveAttendance, saveForecastSettings, subscribeAttendances, subscribeForecastSettings } from './firebase'
+import ForecastPage from './ForecastPage'
+import { defaultForecastSettings } from './forecast'
+import './forecast.css'
 
 const schools = { MIAGE: { rate: 75, color: '#366c60', soft: '#e5f0eb' }, ECIG: { rate: 70, color: '#cd8a53', soft: '#f7ecdf' } }
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
@@ -23,8 +26,20 @@ function App() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
   const [mobileMenu, setMobileMenu] = useState(false)
+  const [activePage, setActivePage] = useState('overview')
+  const [forecastSettings, setForecastSettings] = useState(defaultForecastSettings)
+  const [forecastSettingsLoaded, setForecastSettingsLoaded] = useState(false)
 
   useEffect(() => subscribeAttendances(setRows, () => setToast('Connexion Firebase interrompue.')), [])
+  useEffect(() => subscribeForecastSettings(value => {
+    if (value) setForecastSettings(current => JSON.stringify(current) === JSON.stringify(value) ? current : value)
+    setForecastSettingsLoaded(true)
+  }, () => setToast('Impossible de charger le calendrier prévisionnel.')), [])
+  useEffect(() => {
+    if (!forecastSettingsLoaded) return
+    const timer = setTimeout(() => saveForecastSettings(forecastSettings).catch(() => setToast('Impossible d’enregistrer le calendrier prévisionnel.')), 450)
+    return () => clearTimeout(timer)
+  }, [forecastSettings, forecastSettingsLoaded])
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(''), 2800); return () => clearTimeout(t) } }, [toast])
 
   const monthly = useMemo(() => rows.filter(r => r.date.startsWith(month)), [rows, month])
@@ -68,16 +83,17 @@ function App() {
     <aside className={`sidebar ${mobileMenu ? 'sidebar-open' : ''}`}>
       <div className="brand"><div className="brand-mark"><GraduationCap size={20} strokeWidth={2.2} /></div><span>heures<span className="brand-dot">.</span></span></div>
       <div className="workspace-label">ESPACE DE TRAVAIL</div>
-      <nav><button className="nav-item active"><LayoutDashboard size={18} /><span>Vue d’ensemble</span></button><button className="nav-item" onClick={() => document.getElementById('history')?.scrollIntoView({ behavior: 'smooth' })}><CalendarDays size={18} /><span>Présences</span><span className="nav-count">{rows.length}</span></button></nav>
+      <nav><button className={`nav-item ${activePage === 'overview' ? 'active' : ''}`} onClick={() => { setActivePage('overview'); setMobileMenu(false) }}><LayoutDashboard size={18} /><span>Vue d’ensemble</span></button><button className={`nav-item ${activePage === 'attendance' ? 'active' : ''}`} onClick={() => { setActivePage('attendance'); setMobileMenu(false); setTimeout(() => document.getElementById('history')?.scrollIntoView({ behavior: 'smooth' }), 0) }}><CalendarDays size={18} /><span>Présences</span><span className="nav-count">{rows.length}</span></button><button className={`nav-item ${activePage === 'forecast' ? 'active' : ''}`} onClick={() => { setActivePage('forecast'); setMobileMenu(false) }}><TrendingUp size={18} /><span>Prévisions</span></button></nav>
       <div className="sidebar-rule" />
       <div className="workspace-label school-label">ÉTABLISSEMENTS</div>
-      {Object.entries(schools).map(([name, data]) => <button className="school-nav" key={name} onClick={() => { setFilterSchool(name); document.getElementById('history')?.scrollIntoView({ behavior: 'smooth' }) }}><span className="school-icon" style={{ background: data.soft, color: data.color }}>{initials(name)}</span><span>{name}</span><span className="rate-tag">{data.rate} DH</span></button>)}
+      {Object.entries(schools).map(([name, data]) => <button className="school-nav" key={name} onClick={() => { setFilterSchool(name); setActivePage('attendance'); setTimeout(() => document.getElementById('history')?.scrollIntoView({ behavior: 'smooth' }), 0) }}><span className="school-icon" style={{ background: data.soft, color: data.color }}>{initials(name)}</span><span>{name}</span><span className="rate-tag">{data.rate} DH</span></button>)}
       <div className="sidebar-bottom"><div className="help-icon"><Sparkles size={17} /></div><div><strong>Un coup de main ?</strong><span>Votre suivi, tout simplement.</span></div><ArrowRight size={16} className="help-arrow" /></div>
     </aside>
     {mobileMenu && <div className="scrim" onClick={() => setMobileMenu(false)} />}
     <main className="main-area">
-      <header className="topbar"><button className="icon-button mobile-toggle" onClick={() => setMobileMenu(!mobileMenu)}><Menu size={20} /></button><div className="breadcrumb">Espace personnel <span>/</span> <b>Vue d’ensemble</b></div><div className="topbar-right"><span className={`sync-indicator ${firebaseReady ? 'synced' : ''}`}><i />{firebaseReady ? 'Synchronisé' : 'Mode local'}</span><div className="avatar">S</div></div></header>
+      <header className="topbar"><button className="icon-button mobile-toggle" onClick={() => setMobileMenu(!mobileMenu)}><Menu size={20} /></button><div className="breadcrumb">Espace personnel <span>/</span> <b>{activePage === 'forecast' ? 'Prévisions' : activePage === 'attendance' ? 'Présences' : 'Vue d’ensemble'}</b></div><div className="topbar-right"><span className={`sync-indicator ${firebaseReady ? 'synced' : ''}`}><i />{firebaseReady ? 'Synchronisé' : 'Mode local'}</span><div className="avatar">S</div></div></header>
       <div className="content">
+        {activePage === 'forecast' ? <ForecastPage rows={rows} month={month} setMonth={setMonth} schools={schools} money={money} settings={forecastSettings} onSettingsChange={setForecastSettings} /> : <>
         <section className="page-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> VOTRE ACTIVITÉ</div><h1>Bonjour, bienvenue <span className="wave">✳</span></h1><p>Voici le résumé de vos présences et honoraires.</p></div><button className="primary-button" onClick={openNew}><Plus size={18} strokeWidth={2.5} /> Ajouter une présence</button></section>
         {!firebaseReady && <div className="setup-notice"><div className="notice-icon"><Sparkles size={16} /></div><div><b>Mode local activé</b><span>Configurez Firebase pour synchroniser vos données dans le cloud.</span></div><a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer">Configurer <ArrowRight size={14} /></a></div>}
         <section className="stats-row">
@@ -94,6 +110,7 @@ function App() {
           <div className="table-footer"><span>Montants calculés automatiquement au tarif de chaque établissement.</span><div>Total filtré <b>{money(visible.reduce((sum, r) => sum + Number(r.duration) * schools[r.school].rate, 0))}</b></div></div>
         </section>
         <footer className="page-footer"><span>© {new Date().getFullYear()} Heures. <i /> Suivi des présences</span><span>MIAGE <b>75 DH/h</b><i /> ECIG <b>70 DH/h</b></span></footer>
+        </>}
       </div>
     </main>
     {modal && <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && setModal(false)}><form className="modal" onSubmit={submit}><div className="modal-head"><div><span className="eyebrow"><span className="eyebrow-line" /> NOUVELLE SAISIE</span><h2>{editing ? 'Modifier la présence' : 'Ajouter une présence'}</h2></div><button type="button" className="close-button" onClick={() => setModal(false)}><X size={19} /></button></div><label className="form-label">Établissement</label><div className="school-choice">{Object.entries(schools).map(([name, info]) => <button type="button" key={name} className={form.school === name ? 'choice selected' : 'choice'} onClick={() => setForm({ ...form, school: name })}><span className="school-icon" style={{ background: info.soft, color: info.color }}>{initials(name)}</span><span><b>{name}</b><small>{info.rate} DH / heure</small></span>{form.school === name && <Check size={17} />}</button>)}</div><label className="form-label" htmlFor="date">Date de présence</label><input className="form-input" id="date" type="date" required max={today()} value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /><div className="form-label duration-label">Durée <span>Choix rapide ou personnalisé</span></div><div className="duration-choices">{['1.5', '3'].map(v => <button type="button" key={v} className={!custom && form.duration === v ? 'duration-choice selected' : 'duration-choice'} onClick={() => { setCustom(false); setForm({ ...form, duration: v }) }}><Clock3 size={15} /> {v.replace('.', ',')} h</button>)}<button type="button" className={custom ? 'duration-choice selected' : 'duration-choice'} onClick={() => { setCustom(true); setForm({ ...form, duration: custom ? form.duration : '' }) }}>Autre durée</button></div>{custom && <div className="custom-duration"><input className="form-input" type="number" min="0.25" max="24" step="0.25" required placeholder="Ex. 2,5" value={form.duration} onChange={e => setForm({ ...form, duration: e.target.value })} /><span>heures</span></div>}<div className="fee-preview"><span>Honoraires estimés</span><b>{money((Number(form.duration) || 0) * schools[form.school].rate)}</b><small>{form.duration || '0'} h × {schools[form.school].rate} DH/h</small></div><div className="modal-actions"><button type="button" className="cancel-button" onClick={() => setModal(false)}>Annuler</button><button className="primary-button" type="submit" disabled={saving}>{saving ? 'Enregistrement…' : editing ? 'Enregistrer' : <><Plus size={17} /> Ajouter la présence</>}</button></div></form></div>}
